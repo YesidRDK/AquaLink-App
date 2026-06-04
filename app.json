@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "AguaBarinitas",
+    "slug": "AguaBarinitas",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/logo-blanco.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/logo-blanco.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0069B4"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/logo-blanco.png",
+        "backgroundColor": "#0069B4"
+      },
+      "package": "com.tuusuario.aguabarinitas"
+    },
+    "web": {
+      "favicon": "./assets/logo-blanco.png"
+    }
+  }
+}
