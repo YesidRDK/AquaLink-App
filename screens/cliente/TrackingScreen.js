@@ -42,7 +42,7 @@ export default function TrackingScreen({ navigation, route }) {
     return () => unsubscribe();
   }, [pedidoId]);
 
-  // --- CREACIÓN DEL MAPA ESTÁTICO INICIAL ---
+// --- CREACIÓN DEL MAPA ESTÁTICO INICIAL CON ICONOS VECTORIALES (SVG) ---
   const mapHtml = useMemo(() => {
     if (!pedido || !pedido.destinoCoords) return '';
     
@@ -50,6 +50,16 @@ export default function TrackingScreen({ navigation, route }) {
     const startLng = pedido.conductorCoords?.lng || -70.4074;
     const destLat = pedido.destinoCoords.lat;
     const destLng = pedido.destinoCoords.lng;
+
+    // DEFINICIÓN DE SVGs (Siluetas vectoriales compatibles con la web)
+    
+    // Silueta de Camión (Equivalente vectorial de 🚛)
+    // Color azul corporativo: '#0069B4'
+    const truckSvg = `<svg viewBox="0 0 640 512" style="width:100%; height:100%;"><path fill="#0069B4" d="M624 352h-16V243.9c0-12.7-5.1-24.9-14.1-33.9L494 110.1c-9-9-21.2-14.1-33.9-14.1H416V48c0-26.5-21.5-48-48-48H48C21.5 0 0 21.5 0 48v320c0 26.5 21.5 48 48 48h16c0 53 43 96 96 96s96-43 96-96h128c0 53 43 96 96 96s96-43 96-96h48c8.8 0 16-7.2 16-16v-32c0-8.8-7.2-16-16-16zM160 464c-26.5 0-48-21.5-48-48s21.5-48 48-48 48 21.5 48 48-21.5 48-48 48zm320 0c-26.5 0-48-21.5-48-48s21.5-48 48-48 48 21.5 48 48-21.5 48-48 48zm80-208H416V144h44.1l99.9 99.9V256z"/></svg>`;
+
+    // Silueta de Pin de Ubicación (Equivalente vectorial de 📍)
+    // Color rojo estándar de mapas: '#FF3B30'
+    const pinSvg = `<svg viewBox="0 0 384 512" style="width:100%; height:100%;"><path fill="#FF3B30" d="M172.268 501.67C26.97 291.031 0 269.413 0 192 0 85.961 85.961 0 192 0s192 85.961 192 192c0 77.413-26.97 99.031-172.268 309.67-9.535 13.774-29.93 13.773-39.464 0zM192 272c44.183 0 80-35.817 80-80s-35.817-80-80-80-80 35.817-80 80 35.817 80 80 80z"/></svg>`;
 
     return `
       <html>
@@ -60,8 +70,12 @@ export default function TrackingScreen({ navigation, route }) {
           <style> 
             body { margin: 0; padding: 0; } 
             #map { height: 100vh; width: 100vw; }
-            .truck-icon { font-size: 35px; text-align: center; }
-            .dest-icon { font-size: 35px; text-align: center; }
+            /* Estilo para el contenedor de los iconos vectoriales SVG */
+            .vector-icon-container {
+              display: flex;
+              justify-content: center;
+              align-items: center;
+            }
           </style>
         </head>
         <body>
@@ -70,8 +84,20 @@ export default function TrackingScreen({ navigation, route }) {
             var map = L.map('map').setView([${startLat}, ${startLng}], 15);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-            var truckIcon = L.divIcon({html: '🚛', className: 'truck-icon', iconSize: [40, 40]});
-            var destIcon = L.divIcon({html: '📍', className: 'dest-icon', iconSize: [40, 40]});
+            // ACTUALIZACIÓN DE DEFINICIONES DE ICONOS: Usando L.divIcon con contenido SVG
+            var truckIcon = L.divIcon({
+              html: '${truckSvg}',
+              className: 'vector-icon-container',
+              iconSize: [40, 40],
+              iconAnchor: [20, 20] // Centro geométrico del icono del camión
+            });
+
+            var destIcon = L.divIcon({
+              html: '${pinSvg}',
+              className: 'vector-icon-container',
+              iconSize: [30, 40], // Tamaño ajustado para proporción de pin
+              iconAnchor: [15, 40] // Punta inferior del pin
+            });
 
             var truckMarker = L.marker([${startLat}, ${startLng}], {icon: truckIcon}).addTo(map);
             var destMarker = L.marker([${destLat}, ${destLng}], {icon: destIcon}).addTo(map);
@@ -171,7 +197,7 @@ export default function TrackingScreen({ navigation, route }) {
       
       <View style={{
         backgroundColor: pedido.estado === 'finalizado' ? '#34C759' : '#0069B4',
-        height: 100, justifyContent: 'center', alignItems: 'center', borderBottomLeftRadius: 35, borderBottomRightRadius: 35
+        height: 0 , justifyContent: 'center', alignItems: 'center', borderBottomLeftRadius: 35, borderBottomRightRadius: 35
       }}>
         <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#fff', marginTop: 15, textTransform: 'uppercase' }}>
           {pedido.estado === 'esperando_pago' ? '¡El Camión Llegó!' : 
@@ -182,6 +208,7 @@ export default function TrackingScreen({ navigation, route }) {
 
       <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 20, alignItems: 'center' }} showsVerticalScrollIndicator={false}>
         
+        {/* --- 1. BUSCANDO CONDUCTOR --- */}
         {pedido.estado === 'buscando_conductor' && (
           <View style={{ alignItems: 'center', marginTop: 30 }}>
             <ActivityIndicator size="large" color="#0069B4" />
@@ -194,7 +221,7 @@ export default function TrackingScreen({ navigation, route }) {
           </View>
         )}
 
-        {/* --- VISTA DE MAPA EN VIVO --- */}
+        {/* --- 2. VISTA DE MAPA EN VIVO --- */}
         {pedido.estado === 'en_camino' && (
           <View style={{ width: '100%', alignItems: 'center' }}>
             <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#0069B4', marginBottom: 5 }}>¡El camión está en camino!</Text>
@@ -217,11 +244,25 @@ export default function TrackingScreen({ navigation, route }) {
           </View>
         )}
 
+        {/* --- 3. VISTA PARA REALIZAR EL PAGO --- */}
         {pedido.estado === 'esperando_pago' && (
           <View style={{ width: '100%', alignItems: 'center' }}>
             <Ionicons name="cash-outline" size={60} color="#34C759" />
             <Text style={{ fontSize: 18, fontWeight: 'bold', marginVertical: 10 }}>Procede al pago:</Text>
             
+            {/* AQUÍ VA LA CAJA VERDE CON EL MONTO EXACTO */}
+            {pedido.tarifaAplicada && (
+              <View style={{ backgroundColor: '#e8f5e9', padding: 15, borderRadius: 10, marginBottom: 20, alignItems: 'center', borderWidth: 1, borderColor: '#c8e6c9', width: '100%' }}>
+                <Text style={{ color: '#2e7d32', fontSize: 14, fontWeight: 'bold' }}>Monto exacto a transferir</Text>
+                <Text style={{ color: '#2e7d32', fontSize: 32, fontWeight: 'bold', marginTop: 5 }}>
+                  ${pedido.tarifaAplicada}
+                </Text>
+                <Text style={{ color: '#4CAF50', fontSize: 12, marginTop: 5 }}>
+                  Método acordado: {pedido.metodoPago}
+                </Text>
+              </View>
+            )}
+
             <TextInput style={[styles.input, {width: '100%'}]} placeholder="N° de Referencia" value={referenciaPago} onChangeText={setReferenciaPago} keyboardType="numeric" />
             
             <TouchableOpacity style={{ backgroundColor: '#eee', padding: 15, borderRadius: 10, width: '100%', marginVertical: 10, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' }} onPress={seleccionarComprobante}>
@@ -241,6 +282,7 @@ export default function TrackingScreen({ navigation, route }) {
           </View>
         )}
 
+        {/* --- 4. VISTA DE PAGO EN REVISIÓN --- */}
         {pedido.estado === 'pago_en_revision' && (
           <View style={{ alignItems: 'center', marginTop: 30 }}>
             <ActivityIndicator size="large" color="#FF9800" />
@@ -254,6 +296,7 @@ export default function TrackingScreen({ navigation, route }) {
           </View>
         )}
 
+        {/* --- 5. VISTA DE PEDIDO FINALIZADO --- */}
         {pedido.estado === 'finalizado' && (
           <View style={{ alignItems: 'center', marginTop: 30 }}>
             <MaterialCommunityIcons name="party-popper" size={80} color="#34C759" />
@@ -266,19 +309,39 @@ export default function TrackingScreen({ navigation, route }) {
           </View>
         )}
 
+        {/* --- TARJETA DE RESUMEN DEL PEDIDO --- */}
         {pedido.estado !== 'finalizado' && (
           <View style={[styles.infoCard, { borderLeftWidth: 5, borderLeftColor: '#0069B4', width: '100%', marginTop: 30 }]}>
             <Text style={{ fontWeight: 'bold', color: '#0069B4', marginBottom: 5 }}>Resumen:</Text>
+            
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 3 }}>
                <Ionicons name="water" size={16} color="#666" style={{ marginRight: 5 }} />
                <Text>{pedido.litros} Lts</Text>
             </View>
+            
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                <Ionicons name="location" size={16} color="#666" style={{ marginRight: 5 }} />
                <Text>{pedido.destinoTexto}</Text>
-            </View>
-          </View>
-        )}
+            </View> 
+
+            {/* AQUÍ VA EL DETALLE DE LA TARIFA AL FINAL DEL RESUMEN */}
+            {pedido.tarifaAplicada && (pedido.estado === 'en_camino' || pedido.estado === 'recibido') && (
+      <View style={[styles.infoCard, { borderLeftWidth: 5, borderLeftColor: '#34C759', backgroundColor: '#E8F5E9', width: '100%', marginTop: 15 }]}>
+        <Text style={{ fontWeight: 'bold', color: '#1B5E20', marginBottom: 5 }}>Monto Total a Pagar:</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+           <Ionicons name="cash-outline" size={22} color="#1B5E20" style={{ marginRight: 8 }} />
+           <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#1B5E20' }}>
+             {pedido.tarifaAplicada} $
+           </Text>
+        </View>
+        <Text style={{ fontSize: 12, color: '#2E7D32', marginTop: 4 }}>
+          Por favor, prepare su método de pago seleccionado.
+        </Text>
+      </View>
+    )}
+
+  </View>
+)}
       </ScrollView>
     </SafeAreaView>
   );

@@ -1,8 +1,9 @@
 // screens/auth/LoginScreen.js
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Modal, Alert, ScrollView, KeyboardAvoidingView, Platform, SafeAreaView, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Modal, Alert, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import Toast from 'react-native-toast-message';
 import { styles } from '../../styles';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 // --- IMPORTACIÓN DE ICONOS VECTORIALES ---
 import { Ionicons } from '@expo/vector-icons';
