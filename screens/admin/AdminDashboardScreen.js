@@ -53,6 +53,7 @@ export default function AdminDashboardScreen({ navigation }) {
     }
   };
 
+
   const resolverReporte = async (reporteId) => {
     try {
       await updateDoc(doc(db, 'reportes', reporteId), { estado: 'revisado' });
@@ -65,7 +66,7 @@ export default function AdminDashboardScreen({ navigation }) {
 
   // --- RENDERIZADO DE PESTAÑAS ---
   
-  const renderFlota = () => {
+ const renderFlota = () => {
     const activos = conductores.filter(c => c.estado === 'activo' || c.isOnline === true);
     const inactivos = conductores.filter(c => c.estado !== 'activo' && !c.isOnline);
 
@@ -83,15 +84,52 @@ export default function AdminDashboardScreen({ navigation }) {
         </View>
 
         <Text style={[styles.sectionSubtitle, { marginBottom: 10 }]}>Listado de Camioneros</Text>
-        {conductores.map((c) => (
-          <View key={c.id} style={[styles.recentCard, { borderLeftWidth: 5, borderLeftColor: (c.estado === 'activo' || c.isOnline) ? '#4CAF50' : '#F44336' }]}>
-            <View>
-              <Text style={styles.recentName}>{c.nombre} {c.apellido}</Text>
-              <Text style={styles.recentDetail}>{c.placa || 'Placa no registrada'}</Text>
+        
+        {/* Aquí es donde iteramos sobre cada conductor (variable 'c') */}
+        {conductores.map((c) => {
+          // Lógica de estado para cada conductor
+          const estadoActual = c.estadoCuenta || 'activa';
+          const esInactiva = estadoActual === 'inhabilitada';
+
+          return (
+            <View key={c.id} style={[styles.recentCard, { borderLeftWidth: 5, borderLeftColor: (c.estado === 'activo' || c.isOnline) ? '#4CAF50' : '#F44336' }]}>
+              
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                <View>
+                  <Text style={styles.recentName}>{c.nombre} {c.apellido}</Text>
+                  <Text style={styles.recentDetail}>{c.placa || 'Placa no registrada'}</Text>
+                </View>
+                <Ionicons name="ellipse" size={14} color={(c.estado === 'activo' || c.isOnline) ? '#4CAF50' : '#F44336'} />
+              </View>
+
+              {/* EL BOTÓN AHORA VIVE ADENTRO DEL .map() Y USA LA VARIABLE 'c' */}
+              <TouchableOpacity 
+                style={{
+                  backgroundColor: esInactiva ? '#4CAF50' : '#d32f2f', // Verde para habilitar, Rojo para inhabilitar
+                  padding: 10,
+                  borderRadius: 8,
+                  marginTop: 15,
+                  flexDirection: 'row',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  elevation: 2 
+                }}
+                onPress={() => toggleEstadoCuenta(c)} // Pasamos 'c', que es el conductor actual
+              >
+                <Ionicons 
+                  name={esInactiva ? "checkmark-circle-outline" : "ban-outline"} 
+                  size={18} 
+                  color="#FFF" 
+                  style={{ marginRight: 8 }}
+                />
+                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>
+                  {esInactiva ? 'Habilitar Cuenta' : 'Inhabilitar Cuenta'}
+                </Text>
+              </TouchableOpacity>
+
             </View>
-            <Ionicons name="ellipse" size={14} color={(c.estado === 'activo' || c.isOnline) ? '#4CAF50' : '#F44336'} />
-          </View>
-        ))}
+          );
+        })}
       </View>
     );
   };
@@ -180,9 +218,14 @@ export default function AdminDashboardScreen({ navigation }) {
             {activeTab === 'flota' && renderFlota()}
             {activeTab === 'viajes' && renderViajes()}
             {activeTab === 'reportes' && renderReportes()}
+
+           
           </>
+
+          
         )}
       </ScrollView>
+      
     </SafeAreaView>
   );
 }
