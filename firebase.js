@@ -1,8 +1,14 @@
-// firebase.js
+// ================================================
+// Configuración de Firebase
+// Inicializa la conexión con Firebase Auth y
+// Firestore para la gestión de usuarios y pedidos.
+// ================================================
+
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
+// Datos de conexión del proyecto en Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyAxAGcIbpqgoB0SDGWDZhqxlyP_v3VOrNc",
   authDomain: "app-cisterna.firebaseapp.com",
@@ -13,9 +19,9 @@ const firebaseConfig = {
   measurementId: "G-3G782V5V8R"
 };
 
-// Inicializamos la conexión con la nube
+// Inicializar Firebase
 const app = initializeApp(firebaseConfig);
 
-// Exportamos las herramientas que vamos a usar en nuestras pantallas
-export const auth = getAuth(app);      // Para el Login y Registro
-export const db = getFirestore(app);   // Para guardar los pedidos de agua
+// Servicios utilizados en la aplicación
+export const auth = getAuth(app);       // Autenticación (login y registro)
+export const db = getFirestore(app);    // Base de datos (pedidos, usuarios, reportes)

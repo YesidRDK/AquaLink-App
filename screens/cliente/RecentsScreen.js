@@ -130,12 +130,13 @@ export default function RecentsScreen({ navigation }) {
       // Guardamos el reporte en la colección "reportes"
       await addDoc(collection(db, 'reportes'), {
         clienteId: auth.currentUser.uid,
-        clienteNombre: driverToReport.clienteNombre, // Tomamos el nombre del pedido
+        clienteNombre: driverToReport.clienteNombre,
         conductorId: driverToReport.conductorId,
         conductorNombre: driverToReport.conductorNombre,
         motivo: reportReason,
+        tipo: 'cliente_reporta_conductor', // ✅ NUEVO: Identifica el tipo de reporte
         fecha: serverTimestamp(),
-        estado: 'pendiente' // Útil para cuando el administrador lo revise
+        estado: 'pendiente'
       });
 
       Toast.show({ type: 'success', text1: 'Reporte Enviado', text2: 'Evaluaremos el caso a la brevedad.' });
@@ -208,7 +209,7 @@ export default function RecentsScreen({ navigation }) {
               
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 
-                {/* --- NUEVO BOTÓN: REPORTAR CONDUCTOR --- */}
+                {/* BOTÓN: REPORTAR CONDUCTOR */}
                 <TouchableOpacity 
                   style={[styles.contactIcon, { backgroundColor: '#ffebee', marginRight: 8, justifyContent: 'center', alignItems: 'center' }]} 
                   onPress={() => openReportModal(item)}
@@ -240,7 +241,7 @@ export default function RecentsScreen({ navigation }) {
         )}
       </ScrollView>
 
-      {/* --- VENTANA EMERGENTE (MODAL) PARA REPORTAR --- */}
+      {/* --- MODAL PARA REPORTAR --- */}
       <Modal
         animationType="fade"
         transparent={true}
@@ -256,7 +257,7 @@ export default function RecentsScreen({ navigation }) {
             </View>
 
             <Text style={{ color: '#666', marginBottom: 15 }}>
-              Estás reportando a <Text style={{ fontWeight: 'bold' }}>{driverToReport?.conductorNombre}</Text>. Por favor, describe brevemente la irregularidad o el estrago causado:
+              Estás reportando a <Text style={{ fontWeight: 'bold' }}>{driverToReport?.conductorNombre}</Text>. Por favor, describe brevemente la irregularidad:
             </Text>
 
             <TextInput

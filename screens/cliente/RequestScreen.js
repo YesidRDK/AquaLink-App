@@ -1,36 +1,51 @@
-// screens/cliente/RequestScreen.js
+// ================================================
+// Pantalla: Solicitar Camión (Cliente)
+// Permite al cliente crear un nuevo pedido de agua.
+// Configura la ubicación de entrega, cantidad de
+// litros, método de pago y referencias. También
+// detecta si ya existe un pedido activo.
+// ================================================
+
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
+import {
+  View, Text, TextInput, TouchableOpacity, ScrollView,
+  SafeAreaView, ActivityIndicator, Alert
+} from 'react-native';
 import { WebView } from 'react-native-webview';
 import * as Location from 'expo-location';
 import Toast from 'react-native-toast-message';
 import { styles } from '../../styles';
-
-// --- IMPORTACIÓN DE ICONOS VECTORIALES ---
 import { Ionicons } from '@expo/vector-icons';
 
-// IMPORTACIONES DE FIREBASE
+// Firebase Firestore
 import { auth, db } from '../../firebase';
-import { collection, addDoc, doc, getDoc, serverTimestamp, query, where, onSnapshot, deleteDoc } from 'firebase/firestore';
+import {
+  collection, addDoc, doc, getDoc, serverTimestamp,
+  query, where, onSnapshot, deleteDoc
+} from 'firebase/firestore';
 
 export default function RequestScreen({ navigation, route }) {
-  // Estados para los Litros
-  const [liters, setLiters] = useState('5000');
-  const [modoLitros, setModoLitros] = useState('predeterminado');
-  const [showDropdown, setShowDropdown] = useState(false); // Controla el menú desplegable
+  // ==============================================
+  // ESTADOS
+  // ==============================================
+  const [liters, setLiters] = useState('5000');          // Cantidad de litros
+  const [modoLitros, setModoLitros] = useState('predeterminado'); // Modo de selección de litros
+  const [showDropdown, setShowDropdown] = useState(false); // Control del menú desplegable de litros
 
-  const [payment, setPayment] = useState('Pago Móvil');
-  const [modoUbicacion, setModoUbicacion] = useState('predeterminada');
-  const [manualCoords, setManualCoords] = useState(null);
-  const [currentLocation, setCurrentLocation] = useState(null);
-  const [referencia, setReferencia] = useState('');
-  
-  const [isLoading, setIsLoading] = useState(false);
-  const [userData, setUserData] = useState(null);
-  const [pedidoActivo, setPedidoActivo] = useState(null);
-  const [isCheckingOrder, setIsCheckingOrder] = useState(true);
+  const [payment, setPayment] = useState('Pago Móvil');   // Método de pago seleccionado
+  const [modoUbicacion, setModoUbicacion] = useState('predeterminada'); // Ubicación: perfil o manual
+  const [manualCoords, setManualCoords] = useState(null);  // Coordenadas seleccionadas en mapa
+  const [currentLocation, setCurrentLocation] = useState(null); // Ubicación GPS actual
+  const [referencia, setReferencia] = useState('');        // Referencia de dirección (opcional)
 
-  // 1. Radar mejorado: Solo toma la orden activa más reciente
+  const [isLoading, setIsLoading] = useState(false);       // Indicador de carga al enviar
+  const [userData, setUserData] = useState(null);          // Datos del perfil del cliente
+  const [pedidoActivo, setPedidoActivo] = useState(null);  // Pedido activo existente
+  const [isCheckingOrder, setIsCheckingOrder] = useState(true); // Verificación inicial
+
+  // ==============================================
+  // EFECTO: Detectar pedidos activos del cliente
+  // ==============================================
   useEffect(() => {
     const user = auth.currentUser;
     if (!user) {
@@ -38,11 +53,7 @@ export default function RequestScreen({ navigation, route }) {
       return;
     }
 
-    const q = query(
-      collection(db, 'pedidos'),
-      where('clienteId', '==', user.uid)
-    );
-
+    const q = query(collection(db, 'pedidos'), where('clienteId', '==', user.uid));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       let activeOrders = [];
       snapshot.forEach((docSnap) => {
@@ -53,7 +64,6 @@ export default function RequestScreen({ navigation, route }) {
       });
 
       if (activeOrders.length > 0) {
-        // Ordenar por fecha descendente
         activeOrders.sort((a, b) => {
           const dA = a.fecha?.toMillis ? a.fecha.toMillis() : 0;
           const dB = b.fecha?.toMillis ? b.fecha.toMillis() : 0;
@@ -69,6 +79,9 @@ export default function RequestScreen({ navigation, route }) {
     return () => unsubscribe();
   }, []);
 
+  // ==============================================
+  // EFECTO: Obtener ubicación GPS y datos del perfil
+  // ==============================================
   useEffect(() => {
     (async () => {
       try {
@@ -77,7 +90,7 @@ export default function RequestScreen({ navigation, route }) {
           let pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
           setCurrentLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         } else {
-          setCurrentLocation({ lat: 8.7562, lng: -70.4074 });
+          setCurrentLocation({ lat: 8.7562, lng: -70.4074 }); // Coordenadas por defecto
         }
       } catch (error) {
         setCurrentLocation({ lat: 8.7562, lng: -70.4074 });
@@ -93,6 +106,9 @@ export default function RequestScreen({ navigation, route }) {
     })();
   }, []);
 
+  // ==============================================
+  // Recibir coordenadas desde el mapa
+  // ==============================================
   useEffect(() => {
     if (route.params?.ubicacionSeleccionada) {
       setManualCoords(route.params.ubicacionSeleccionada);
@@ -100,6 +116,9 @@ export default function RequestScreen({ navigation, route }) {
     }
   }, [route.params?.ubicacionSeleccionada]);
 
+  // ==============================================
+  // Cancelar el pedido activo
+  // ==============================================
   const handleCancelOrder = () => {
     if (!pedidoActivo) return;
     Alert.alert(
@@ -107,9 +126,9 @@ export default function RequestScreen({ navigation, route }) {
       "¿Estás seguro de que deseas cancelar tu pedido actual?",
       [
         { text: "No, mantener", style: "cancel" },
-        { 
-          text: "Sí, cancelar", 
-          style: "destructive", 
+        {
+          text: "Sí, cancelar",
+          style: "destructive",
           onPress: async () => {
             try {
               await deleteDoc(doc(db, 'pedidos', pedidoActivo.id));
@@ -123,6 +142,9 @@ export default function RequestScreen({ navigation, route }) {
     );
   };
 
+  // ==============================================
+  // Enviar nuevo pedido a Firestore
+  // ==============================================
   const handleOrder = async () => {
     if (pedidoActivo) {
       Toast.show({ type: 'error', text1: 'Orden en curso', text2: 'Ya tienes un pedido activo.' });
@@ -131,7 +153,6 @@ export default function RequestScreen({ navigation, route }) {
 
     setIsLoading(true);
 
-    // --- VALIDACIÓN DE LITROS ---
     if (!liters || isNaN(liters) || parseInt(liters) <= 0) {
       Toast.show({ type: 'error', text1: 'Error en Litros', text2: 'Por favor ingresa una cantidad válida.' });
       setIsLoading(false);
@@ -162,13 +183,13 @@ export default function RequestScreen({ navigation, route }) {
       const nuevoPedido = {
         clienteId: user.uid,
         clienteNombre: userData?.username || 'Cliente',
-        litros: liters, 
+        litros: liters,
         metodoPago: payment,
         referencia: referencia || '',
         destinoCoords: destinoCoords,
         destinoTexto: destinoTexto,
-        estado: 'buscando_conductor', 
-        fecha: serverTimestamp(), 
+        estado: 'buscando_conductor',
+        fecha: serverTimestamp(),
       };
 
       const docRef = await addDoc(collection(db, 'pedidos'), nuevoPedido);
@@ -181,6 +202,7 @@ export default function RequestScreen({ navigation, route }) {
     }
   };
 
+  // Indicador de carga inicial
   if (isCheckingOrder) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -189,8 +211,12 @@ export default function RequestScreen({ navigation, route }) {
     );
   }
 
+  // ==============================================
+  // INTERFAZ DE USUARIO
+  // ==============================================
   return (
     <SafeAreaView style={styles.container}>
+      {/* Cabecera */}
       <View style={{
         backgroundColor: '#0069B4', height: 90, justifyContent: 'center', alignItems: 'center',
         borderBottomLeftRadius: 35, borderBottomRightRadius: 35, elevation: 10
@@ -204,7 +230,7 @@ export default function RequestScreen({ navigation, route }) {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, padding: 20 }}>
-        
+        {/* Vista cuando hay un pedido activo */}
         {pedidoActivo ? (
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 }}>
             <Ionicons name="hourglass-outline" size={80} color="#0069B4" style={{ marginBottom: 20 }} />
@@ -215,7 +241,7 @@ export default function RequestScreen({ navigation, route }) {
               Termina o cancela tu pedido de {pedidoActivo.litros} Lts antes de hacer uno nuevo.
             </Text>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.mainButton, { width: '100%', backgroundColor: '#0069B4', marginBottom: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
               onPress={() => navigation.navigate('Tracking', { pedidoId: pedidoActivo.id })}
             >
@@ -223,7 +249,7 @@ export default function RequestScreen({ navigation, route }) {
               <Ionicons name="map-outline" size={20} color="#fff" style={{ marginLeft: 8 }} />
             </TouchableOpacity>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.mainButton, { width: '100%', backgroundColor: '#fff', borderWidth: 2, borderColor: '#FF3B30', flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
               onPress={handleCancelOrder}
             >
@@ -232,23 +258,25 @@ export default function RequestScreen({ navigation, route }) {
             </TouchableOpacity>
           </View>
         ) : (
+          /* Formulario de nuevo pedido */
           <View>
+            {/* 1. Ubicación de entrega */}
             <Text style={styles.sectionTitle}>1. ¿A dónde enviamos el agua?</Text>
             <View style={styles.tabContainer}>
-                <TouchableOpacity 
-                  style={[styles.tabButton, modoUbicacion === 'predeterminada' && styles.tabButtonActive, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]} 
-                  onPress={() => setModoUbicacion('predeterminada')}
-                >
-                  <Ionicons name="home" size={16} color={modoUbicacion === 'predeterminada' ? '#fff' : '#0069B4'} style={{ marginRight: 6 }} />
-                  <Text style={[styles.tabText, modoUbicacion === 'predeterminada' && styles.tabTextActive]}>Mi Casa</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.tabButton, modoUbicacion === 'manual' && styles.tabButtonActive, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]} 
-                  onPress={() => navigation.navigate('MapPicker', { origen: 'Request' })}
-                >
-                  <Ionicons name="map" size={16} color={modoUbicacion === 'manual' ? '#fff' : '#0069B4'} style={{ marginRight: 6 }} />
-                  <Text style={[styles.tabText, modoUbicacion === 'manual' && styles.tabTextActive]}>Mapa</Text>
-                </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.tabButton, modoUbicacion === 'predeterminada' && styles.tabButtonActive, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
+                onPress={() => setModoUbicacion('predeterminada')}
+              >
+                <Ionicons name="home" size={16} color={modoUbicacion === 'predeterminada' ? '#fff' : '#0069B4'} style={{ marginRight: 6 }} />
+                <Text style={[styles.tabText, modoUbicacion === 'predeterminada' && styles.tabTextActive]}>Mi Casa</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.tabButton, modoUbicacion === 'manual' && styles.tabButtonActive, { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
+                onPress={() => navigation.navigate('MapPicker', { origen: 'Request' })}
+              >
+                <Ionicons name="map" size={16} color={modoUbicacion === 'manual' ? '#fff' : '#0069B4'} style={{ marginRight: 6 }} />
+                <Text style={[styles.tabText, modoUbicacion === 'manual' && styles.tabTextActive]}>Mapa</Text>
+              </TouchableOpacity>
             </View>
 
             {modoUbicacion === 'predeterminada' ? (
@@ -264,57 +292,53 @@ export default function RequestScreen({ navigation, route }) {
               </View>
             )}
 
-            <Text style={[styles.sectionTitle, {marginTop: 20}]}>Punto de Referencia (Opcional)</Text>
+            <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Punto de Referencia (Opcional)</Text>
             <TextInput style={styles.input} placeholder="Ej: Casa azul..." value={referencia} onChangeText={setReferencia} />
 
-            {/* --- SECCIÓN DE LITROS --- */}
-            <Text style={[styles.sectionTitle, {marginTop: 20}]}>2. ¿Cuántos Litros necesitas?</Text>
+            {/* 2. Cantidad de litros */}
+            <Text style={[styles.sectionTitle, { marginTop: 20 }]}>2. ¿Cuántos Litros necesitas?</Text>
             <View style={styles.tabContainer}>
-                <TouchableOpacity 
-                  style={[styles.tabButton, modoLitros === 'predeterminado' && styles.tabButtonActive]} 
-                  onPress={() => { setModoLitros('predeterminado'); setLiters('5000'); setShowDropdown(false); }}
-                >
-                  <Text style={[styles.tabText, modoLitros === 'predeterminado' && styles.tabTextActive]}>Predeterminado</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.tabButton, modoLitros === 'manual' && styles.tabButtonActive]} 
-                  onPress={() => { setModoLitros('manual'); setLiters(''); setShowDropdown(false); }}
-                >
-                  <Text style={[styles.tabText, modoLitros === 'manual' && styles.tabTextActive]}>Ingresar manual</Text>
-                </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.tabButton, modoLitros === 'predeterminado' && styles.tabButtonActive]}
+                onPress={() => { setModoLitros('predeterminado'); setLiters('5000'); setShowDropdown(false); }}
+              >
+                <Text style={[styles.tabText, modoLitros === 'predeterminado' && styles.tabTextActive]}>Predeterminado</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.tabButton, modoLitros === 'manual' && styles.tabButtonActive]}
+                onPress={() => { setModoLitros('manual'); setLiters(''); setShowDropdown(false); }}
+              >
+                <Text style={[styles.tabText, modoLitros === 'manual' && styles.tabTextActive]}>Ingresar manual</Text>
+              </TouchableOpacity>
             </View>
 
             {modoLitros === 'predeterminado' ? (
               <View style={{ marginTop: 10, position: 'relative', zIndex: 10 }}>
-                 <TouchableOpacity
-                   style={[styles.input, { justifyContent: 'center', backgroundColor: '#fff' }]}
-                   onPress={() => setShowDropdown(!showDropdown)}
-                 >
-                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                     <Text style={{ fontSize: 16, color: '#333', marginRight: 5 }}>{liters} Lts</Text>
-                     <Ionicons name={showDropdown ? "chevron-up" : "chevron-down"} size={18} color="#333" />
-                   </View>
-                 </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.input, { justifyContent: 'center', backgroundColor: '#fff' }]}
+                  onPress={() => setShowDropdown(!showDropdown)}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 16, color: '#333', marginRight: 5 }}>{liters} Lts</Text>
+                    <Ionicons name={showDropdown ? "chevron-up" : "chevron-down"} size={18} color="#333" />
+                  </View>
+                </TouchableOpacity>
 
-                 {/* Menú Desplegable */}
-                 {showDropdown && (
-                   <View style={{ backgroundColor: '#fff', borderRadius: 10, elevation: 4, marginTop: 5, overflow: 'hidden', borderWidth: 1, borderColor: '#eee' }}>
-                     {['1000', '5000', '10000'].map((val) => (
-                       <TouchableOpacity
-                         key={val}
-                         style={{ padding: 15, borderBottomWidth: 1, borderBottomColor: '#eee', backgroundColor: liters === val ? '#e3f2fd' : '#fff' }}
-                         onPress={() => {
-                           setLiters(val);
-                           setShowDropdown(false);
-                         }}
-                       >
-                         <Text style={{ fontSize: 16, color: liters === val ? '#0069B4' : '#333', fontWeight: liters === val ? 'bold' : 'normal', textAlign: 'center' }}>
-                           {val} Litros
-                         </Text>
-                       </TouchableOpacity>
-                     ))}
-                   </View>
-                 )}
+                {showDropdown && (
+                  <View style={{ backgroundColor: '#fff', borderRadius: 10, elevation: 4, marginTop: 5, overflow: 'hidden', borderWidth: 1, borderColor: '#eee' }}>
+                    {['1000', '5000', '10000'].map((val) => (
+                      <TouchableOpacity
+                        key={val}
+                        style={{ padding: 15, borderBottomWidth: 1, borderBottomColor: '#eee', backgroundColor: liters === val ? '#e3f2fd' : '#fff' }}
+                        onPress={() => { setLiters(val); setShowDropdown(false); }}
+                      >
+                        <Text style={{ fontSize: 16, color: liters === val ? '#0069B4' : '#333', fontWeight: liters === val ? 'bold' : 'normal', textAlign: 'center' }}>
+                          {val} Litros
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
               </View>
             ) : (
               <View style={{ marginTop: 10 }}>
@@ -328,18 +352,24 @@ export default function RequestScreen({ navigation, route }) {
               </View>
             )}
 
-            <Text style={[styles.sectionTitle, {marginTop: 20}]}>3. Método de Pago</Text>
+            {/* 3. Método de pago */}
+            <Text style={[styles.sectionTitle, { marginTop: 20 }]}>3. Método de Pago</Text>
             <View style={styles.optionsGrid}>
               {['Pago Móvil', 'Efectivo', 'Transferencia'].map((item) => (
-                <TouchableOpacity key={item} style={[styles.optionButton, { flex: 1, minWidth: '40%', marginBottom: 10 }, payment === item && styles.optionButtonActive]} onPress={() => setPayment(item)}>
+                <TouchableOpacity
+                  key={item}
+                  style={[styles.optionButton, { flex: 1, minWidth: '40%', marginBottom: 10 }, payment === item && styles.optionButtonActive]}
+                  onPress={() => setPayment(item)}
+                >
                   <Text style={[styles.optionText, payment === item && styles.optionTextActive]}>{item}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <TouchableOpacity 
-              style={[styles.mainButton, { marginTop: 30, marginBottom: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }, isLoading && { backgroundColor: '#888' }]} 
-              onPress={handleOrder} 
+            {/* Botón de confirmar pedido */}
+            <TouchableOpacity
+              style={[styles.mainButton, { marginTop: 30, marginBottom: 50, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }, isLoading && { backgroundColor: '#888' }]}
+              onPress={handleOrder}
               disabled={isLoading}
             >
               {isLoading ? (

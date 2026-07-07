@@ -1,15 +1,15 @@
 {
   "expo": {
-    "name": "AguaBarinitas",
-    "slug": "AguaBarinitas",
+    "name": "AquaLink",
+    "slug": "AquaLink",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/logo-blanco.png",
-    "userInterfaceStyle": "light",
+    "icon": "./assets/logo-azul.png",
+    "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/logo-blanco.png",
+      "image": "./assets/logo-azul.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0069B4"
+      "backgroundColor": "#ffffff"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -18,14 +18,15 @@
       "supportsTablet": true
     },
     "android": {
+      "backgroundColor": "#ffffff",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/logo-blanco.png",
-        "backgroundColor": "#0069B4"
+        "foregroundImage": "./assets/logo-azul.png",
+        "backgroundColor": "#ffffff"  
       },
       "package": "com.tuusuario.aguabarinitas"
     },
     "web": {
-      "favicon": "./assets/logo-blanco.png"
+      "favicon": "./assets/logo-azul.png"
     }
   }
 }

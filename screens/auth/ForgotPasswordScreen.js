@@ -1,24 +1,36 @@
+// ================================================
+// Pantalla: Recuperación de Contraseña
+// Permite solicitar un correo de restablecimiento
+// de contraseña mediante Firebase Auth.
+// ================================================
+
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, SafeAreaView, ActivityIndicator, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  SafeAreaView,
+  ActivityIndicator,
+  Alert
+} from 'react-native';
 import { styles } from '../../styles';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
-
-// IMPORTACIONES DE FIREBASE
-import { auth } from '../../firebase'; // Asegúrate de que la ruta sea correcta
+import { auth } from '../../firebase';
 import { sendPasswordResetEmail } from 'firebase/auth';
 
 export default function ForgotPasswordScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Envía el correo de restablecimiento de contraseña
   const handleResetPassword = async () => {
     if (!email) {
       Toast.show({ type: 'error', text1: 'Correo requerido', text2: 'Por favor, ingresa tu dirección de correo.' });
       return;
     }
 
-    // Validación básica de formato de correo
     const emailRegex = /\S+@\S+\.\S+/;
     if (!emailRegex.test(email)) {
       Toast.show({ type: 'error', text1: 'Formato inválido', text2: 'Ingresa un correo electrónico válido.' });
@@ -26,45 +38,36 @@ export default function ForgotPasswordScreen({ navigation }) {
     }
 
     setIsLoading(true);
-
     try {
+      auth.languageCode = 'es';
       await sendPasswordResetEmail(auth, email);
       setIsLoading(false);
-      
       Alert.alert(
         "¡Correo Enviado!",
         "Revisa tu bandeja de entrada o la carpeta de spam para restablecer tu contraseña.",
         [{ text: "Entendido", onPress: () => navigation.goBack() }]
       );
-      
     } catch (error) {
       setIsLoading(false);
       let errorMsg = "Ocurrió un error al intentar enviar el correo.";
-      
-      if (error.code === 'auth/user-not-found') {
-        errorMsg = "No hay ningún usuario registrado con este correo.";
-      } else if (error.code === 'auth/invalid-email') {
-        errorMsg = "El correo electrónico no es válido.";
-      }
-
+      if (error.code === 'auth/user-not-found') errorMsg = "No hay ningún usuario registrado con este correo.";
+      else if (error.code === 'auth/invalid-email') errorMsg = "El correo electrónico no es válido.";
       Toast.show({ type: 'error', text1: 'Error', text2: errorMsg });
     }
   };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: '#fff' }]}>
-      
-      {/* BOTÓN DE VOLVER */}
-      <TouchableOpacity 
-        style={{ position: 'absolute', top: 50, left: 20, zIndex: 10, flexDirection: 'row', alignItems: 'center' }} 
+      {/* Botón para regresar */}
+      <TouchableOpacity
+        style={{ position: 'absolute', top: 50, left: 20, zIndex: 10 }}
         onPress={() => navigation.goBack()}
       >
         <Ionicons name="arrow-back" size={24} color="#0069B4" />
       </TouchableOpacity>
 
       <View style={{ flex: 1, justifyContent: 'center', padding: 25 }}>
-        
-        {/* ICONO Y TÍTULO */}
+        {/* Encabezado con ícono y descripción */}
         <View style={{ alignItems: 'center', marginBottom: 30 }}>
           <View style={{ backgroundColor: '#e3f2fd', padding: 20, borderRadius: 50, marginBottom: 15 }}>
             <Ionicons name="lock-closed-outline" size={60} color="#0069B4" />
@@ -77,10 +80,15 @@ export default function ForgotPasswordScreen({ navigation }) {
           </Text>
         </View>
 
-        {/* INPUT DE CORREO */}
+        {/* Campo de correo electrónico */}
         <View style={{ marginBottom: 25 }}>
-          <Text style={{ fontWeight: 'bold', color: '#333', marginBottom: 8, marginLeft: 5 }}>Correo Electrónico</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#ccc', borderRadius: 10, paddingHorizontal: 15, backgroundColor: '#f9f9f9' }}>
+          <Text style={{ fontWeight: 'bold', color: '#333', marginBottom: 8, marginLeft: 5 }}>
+            Correo Electrónico
+          </Text>
+          <View style={{
+            flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#ccc',
+            borderRadius: 10, paddingHorizontal: 15, backgroundColor: '#f9f9f9'
+          }}>
             <Ionicons name="mail-outline" size={20} color="#666" style={{ marginRight: 10 }} />
             <TextInput
               style={{ flex: 1, height: 50, fontSize: 16, color: '#333' }}
@@ -93,9 +101,9 @@ export default function ForgotPasswordScreen({ navigation }) {
           </View>
         </View>
 
-        {/* BOTÓN DE ENVÍO */}
-        <TouchableOpacity 
-          style={[styles.mainButton, { backgroundColor: '#0069B4', flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]} 
+        {/* Botón de envío */}
+        <TouchableOpacity
+          style={[styles.mainButton, { backgroundColor: '#0069B4', flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
           onPress={handleResetPassword}
           disabled={isLoading}
         >
@@ -108,7 +116,6 @@ export default function ForgotPasswordScreen({ navigation }) {
             </>
           )}
         </TouchableOpacity>
-
       </View>
     </SafeAreaView>
   );

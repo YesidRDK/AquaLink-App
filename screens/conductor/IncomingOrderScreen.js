@@ -1,23 +1,36 @@
-// screens/conductor/IncomingOrderScreen.js
+// ================================================
+// Pantalla: Recepción de Nuevo Pedido (Conductor)
+// Flujo en tres pasos para aceptar un pedido:
+// 1. Revisar resumen del pedido
+// 2. Seleccionar rango horario de entrega
+// 3. Establecer la tarifa del servicio
+// Al confirmar, se actualiza el pedido en Firestore
+// y se inicia la navegación hacia el destino.
+// ================================================
+
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, SafeAreaView, ScrollView, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import {
+  View, Text, TouchableOpacity, SafeAreaView, ScrollView,
+  TextInput, KeyboardAvoidingView, Platform
+} from 'react-native';
 import { styles } from '../../styles';
 import { auth, db } from '../../firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-
-// --- IMPORTACIÓN DE ICONOS VECTORIALES ---
 import { Ionicons } from '@expo/vector-icons';
 
 export default function IncomingOrderScreen({ navigation, route }) {
-  const [paso, setPaso] = useState(1); 
-  const [rangoSeleccionado, setRangoSeleccionado] = useState(null);
-  
-  // --- NUEVO ESTADO PARA LA TARIFA ---
-  const [tarifaPropuesta, setTarifaPropuesta] = useState('');
-  
+  // ==============================================
+  // ESTADOS
+  // ==============================================
+  const [paso, setPaso] = useState(1);                   // Control del flujo: 1, 2 o 3
+  const [rangoSeleccionado, setRangoSeleccionado] = useState(null); // Horario estimado
+  const [tarifaPropuesta, setTarifaPropuesta] = useState('');       // Monto a cobrar
+
+  // Datos del pedido recibidos desde la notificación
   const pedidoData = route.params?.pedidoData || {};
   const pedidoId = route.params?.pedidoId || "";
 
+  // Información resumida del pedido para mostrar en pantalla
   const pedidoReal = {
     cliente: pedidoData?.clienteNombre || "Cliente",
     litros: pedidoData?.litros || "---",
@@ -26,6 +39,7 @@ export default function IncomingOrderScreen({ navigation, route }) {
     tipoUbicacion: pedidoData?.referencia ? "Con Referencia" : "GPS"
   };
 
+  // Opciones de rangos horarios disponibles
   const rangosHorarios = [
     "Entre 8:00 AM - 12:00 PM",
     "Entre 12:00 PM - 4:00 PM",
@@ -33,13 +47,16 @@ export default function IncomingOrderScreen({ navigation, route }) {
     "Lo antes posible (30-60 min)"
   ];
 
-  // --- FUNCIÓN FINAL PARA GUARDAR HORARIO Y TARIFA ---
+  // ==============================================
+  // Confirmar pedido: guarda horario, tarifa y
+  // actualiza el estado del pedido en Firestore
+  // ==============================================
   const handleConfirmarPedidoCompleto = async () => {
     if (!tarifaPropuesta.trim()) {
       alert("Por favor, ingresa la tarifa a cobrar.");
       return;
     }
-    
+
     try {
       const user = auth.currentUser;
       if (!user) return;
@@ -48,52 +65,47 @@ export default function IncomingOrderScreen({ navigation, route }) {
       const driverData = driverDoc.data();
 
       const pedidoRef = doc(db, 'pedidos', pedidoId);
-      
-      // Actualizamos con toda la info (horario + tarifa)
       await updateDoc(pedidoRef, {
         estado: 'en_camino',
         conductorId: user.uid,
         conductorNombre: driverData.username || 'Conductor asignado',
-        conductorPlaca: driverData.matriculas || 'Particular', 
+        conductorPlaca: driverData.matriculas || 'Particular',
         rangoLlegada: rangoSeleccionado,
-        tarifaAplicada: tarifaPropuesta, // <-- Guardamos la tarifa aquí
+        tarifaAplicada: tarifaPropuesta,
         fechaAceptado: new Date().toISOString()
       });
 
       alert(`¡Pedido Confirmado! ✅\nEl cliente ha sido notificado del horario y la tarifa.`);
-      
-      // Enviamos al mapa
-      navigation.replace('Conductor', { 
-        nuevoPedidoAceptado: true, 
+
+      // Redirigir al mapa con los datos del pedido activo
+      navigation.replace('Conductor', {
+        nuevoPedidoAceptado: true,
         isOnline: true,
         destinoCoords: pedidoData?.destinoCoords,
         pedidoIdActivo: pedidoId
       });
-      
     } catch (error) {
       console.error("Error al aceptar pedido:", error);
       alert("Hubo un error al procesar el pedido.");
     }
   };
 
+  // ==============================================
+  // INTERFAZ DE USUARIO
+  // ==============================================
   return (
     <SafeAreaView style={styles.container}>
-      {/* CABECERA DINÁMICA SEGÚN EL PASO */}
+      {/* Cabecera dinámica según el paso actual */}
       <View style={{
         backgroundColor: paso === 1 ? '#1976D2' : paso === 2 ? '#FF9800' : '#34C759',
-        height: 90,
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingTop: 30,
-        borderBottomLeftRadius: 30,
-        borderBottomRightRadius: 30,
-        elevation: 5
+        height: 90, justifyContent: 'center', alignItems: 'center', paddingTop: 30,
+        borderBottomLeftRadius: 30, borderBottomRightRadius: 30, elevation: 5
       }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           {paso === 1 && <Ionicons name="notifications-circle" size={32} color="#fff" style={{ marginRight: 8 }} />}
           {paso === 2 && <Ionicons name="time-outline" size={30} color="#fff" style={{ marginRight: 8 }} />}
           {paso === 3 && <Ionicons name="cash-outline" size={30} color="#fff" style={{ marginRight: 8 }} />}
-          
+
           <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#fff', textAlign: 'center' }}>
             {paso === 1 ? "¡NUEVO PEDIDO!" : paso === 2 ? "¿Hora de llegada?" : "Establecer Tarifa"}
           </Text>
@@ -102,15 +114,15 @@ export default function IncomingOrderScreen({ navigation, route }) {
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 25 }}>
-          
-          {/* PASO 1: RESUMEN DEL PEDIDO */}
+
+          {/* Paso 1: Resumen del pedido */}
           {paso === 1 && (
             <View>
               <View style={[styles.pedidoCard, { paddingVertical: 25 }]}>
                 <Text style={[styles.sectionTitle, { color: '#1976D2', textAlign: 'center', marginBottom: 20 }]}>
                   Resumen de Solicitud
                 </Text>
-                
+
                 <View style={styles.infoRow}>
                   <View style={{ width: 40, alignItems: 'center' }}>
                     <Ionicons name="person-outline" size={24} color="#1976D2" />
@@ -152,17 +164,18 @@ export default function IncomingOrderScreen({ navigation, route }) {
                 </View>
               </View>
 
+              {/* Botones: Rechazar o Aceptar */}
               <View style={{ flexDirection: 'row', gap: 15, marginTop: 30 }}>
-                <TouchableOpacity 
-                  style={[styles.mainButton, { flex: 1, backgroundColor: '#f5f5f5', borderWidth: 1, borderColor: '#ddd', flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]} 
+                <TouchableOpacity
+                  style={[styles.mainButton, { flex: 1, backgroundColor: '#f5f5f5', borderWidth: 1, borderColor: '#ddd', flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
                   onPress={() => navigation.navigate('Conductor', { pedidoRechazado: pedidoId })}
                 >
                   <Ionicons name="close" size={20} color="#d32f2f" style={{ marginRight: 5 }} />
                   <Text style={[styles.mainButtonText, { color: '#d32f2f' }]}>Rechazar</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity 
-                  style={[styles.mainButton, { flex: 1, backgroundColor: '#FF9800', flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]} 
+                <TouchableOpacity
+                  style={[styles.mainButton, { flex: 1, backgroundColor: '#FF9800', flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
                   onPress={() => setPaso(2)}
                 >
                   <Text style={styles.mainButtonText}>Aceptar</Text>
@@ -172,31 +185,31 @@ export default function IncomingOrderScreen({ navigation, route }) {
             </View>
           )}
 
-          {/* PASO 2: RANGO DE HORARIO */}
+          {/* Paso 2: Selección de rango horario */}
           {paso === 2 && (
             <View>
               <Text style={[styles.sectionSubtitle, { textAlign: 'center', fontSize: 16, marginBottom: 25 }]}>
                 Selecciona el rango de tiempo estimado de entrega:
               </Text>
-              
+
               {rangosHorarios.map((rango, index) => (
-                <TouchableOpacity 
-                  key={index} 
+                <TouchableOpacity
+                  key={index}
                   style={[
-                    styles.optionButton, 
+                    styles.optionButton,
                     { marginBottom: 15, paddingVertical: 20, borderRadius: 15, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15 },
-                    rangoSeleccionado === rango && { borderColor: '#FF9800', backgroundColor: '#FFF3E0' } // Estilo activo naranja
+                    rangoSeleccionado === rango && { borderColor: '#FF9800', backgroundColor: '#FFF3E0' }
                   ]}
                   onPress={() => setRangoSeleccionado(rango)}
                 >
-                  <Ionicons 
-                    name={rangoSeleccionado === rango ? "radio-button-on" : "radio-button-off"} 
-                    size={24} 
-                    color={rangoSeleccionado === rango ? "#FF9800" : "#999"} 
+                  <Ionicons
+                    name={rangoSeleccionado === rango ? "radio-button-on" : "radio-button-off"}
+                    size={24}
+                    color={rangoSeleccionado === rango ? "#FF9800" : "#999"}
                     style={{ marginRight: 10 }}
                   />
                   <Text style={[
-                    styles.optionText, 
+                    styles.optionText,
                     rangoSeleccionado === rango && { color: '#FF9800', fontWeight: 'bold' },
                     { fontSize: 16, flex: 1 }
                   ]}>
@@ -205,14 +218,14 @@ export default function IncomingOrderScreen({ navigation, route }) {
                 </TouchableOpacity>
               ))}
 
-              <TouchableOpacity 
-                style={[styles.mainButton, { marginTop: 25, backgroundColor: '#34C759', flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]} 
+              <TouchableOpacity
+                style={[styles.mainButton, { marginTop: 25, backgroundColor: '#34C759', flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
                 onPress={() => {
-                  if(!rangoSeleccionado) {
+                  if (!rangoSeleccionado) {
                     alert("Selecciona un horario antes de continuar.");
                     return;
                   }
-                  setPaso(3); // Avanzamos a la tarifa
+                  setPaso(3);
                 }}
               >
                 <Text style={styles.mainButtonText}>Continuar a Tarifa</Text>
@@ -226,7 +239,7 @@ export default function IncomingOrderScreen({ navigation, route }) {
             </View>
           )}
 
-          {/* PASO 3: TARIFA (¡NUEVA VENTANA!) */}
+          {/* Paso 3: Establecer tarifa */}
           {paso === 3 && (
             <View>
               <View style={{ alignItems: 'center', marginBottom: 30 }}>
@@ -235,19 +248,14 @@ export default function IncomingOrderScreen({ navigation, route }) {
                   ¿Cuál será el costo por entregar {pedidoReal.litros} Litros?
                 </Text>
                 <Text style={{ textAlign: 'center', color: '#666', marginTop: 5 }}>
-                  El cliente pagará mediante: <Text style={{fontWeight: 'bold'}}>{pedidoReal.pago}</Text>
+                  El cliente pagará mediante: <Text style={{ fontWeight: 'bold' }}>{pedidoReal.pago}</Text>
                 </Text>
               </View>
 
-              <View style={{ 
-                flexDirection: 'row', 
-                alignItems: 'center', 
-                borderWidth: 2, 
-                borderColor: '#34C759', 
-                borderRadius: 15, 
-                paddingHorizontal: 20,
-                backgroundColor: '#f9fff9',
-                marginBottom: 30
+              <View style={{
+                flexDirection: 'row', alignItems: 'center', borderWidth: 2,
+                borderColor: '#34C759', borderRadius: 15, paddingHorizontal: 20,
+                backgroundColor: '#f9fff9', marginBottom: 30
               }}>
                 <Text style={{ fontSize: 30, fontWeight: 'bold', color: '#333', marginRight: 10 }}>$</Text>
                 <TextInput
@@ -260,8 +268,8 @@ export default function IncomingOrderScreen({ navigation, route }) {
                 />
               </View>
 
-              <TouchableOpacity 
-                style={[styles.mainButton, { backgroundColor: '#34C759', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 18 }]} 
+              <TouchableOpacity
+                style={[styles.mainButton, { backgroundColor: '#34C759', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 18 }]}
                 onPress={handleConfirmarPedidoCompleto}
               >
                 <Text style={[styles.mainButtonText, { fontSize: 18 }]}>Confirmar y Notificar</Text>
