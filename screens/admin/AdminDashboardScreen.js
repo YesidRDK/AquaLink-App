@@ -3,8 +3,9 @@
 // Descripción: Centro de operaciones que permite al administrador
 //              monitorear la flota de conductores, clientes, viajes
 //              y reportes. Incluye funciones de inhabilitación de cuentas,
-//              revisión y eliminación de viajes y reportes, y generación
-//              de claves únicas para registrar nuevos conductores.
+//              revisión y eliminación de viajes y reportes, generación
+//              de claves únicas para registrar nuevos conductores,
+//              y cierre de sesión.
 // ================================================
 
 import React, { useState, useEffect } from 'react';
@@ -23,8 +24,9 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { styles } from '../../styles';
 
-// --- CONEXIÓN CON FIREBASE FIRESTORE ---
-import { db } from '../../firebase';
+// --- CONEXIÓN CON FIREBASE FIRESTORE Y AUTH ---
+import { auth, db } from '../../firebase';
+import { signOut } from 'firebase/auth';
 import {
   collection,
   query,
@@ -298,6 +300,31 @@ export default function AdminDashboardScreen({ navigation }) {
     } catch (error) {
       Alert.alert('Error', 'No se pudo copiar la clave.');
     }
+  };
+
+  // ==============================================
+  // FUNCIÓN: Cerrar sesión del administrador
+  // ==============================================
+  const handleLogout = () => {
+    Alert.alert(
+      "Cerrar Sesión",
+      "¿Estás seguro de que deseas salir del panel de administración?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Cerrar Sesión",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await signOut(auth);
+              navigation.replace('Login');
+            } catch (error) {
+              Alert.alert("Error", "No se pudo cerrar la sesión.");
+            }
+          }
+        }
+      ]
+    );
   };
 
   // ==============================================
@@ -719,6 +746,7 @@ export default function AdminDashboardScreen({ navigation }) {
   // ==============================================
   return (
     <SafeAreaView style={styles.container}>
+      {/* Cabecera del panel */}
       <View style={{
         backgroundColor: '#1A237E',
         paddingVertical: 20,
@@ -729,6 +757,20 @@ export default function AdminDashboardScreen({ navigation }) {
       }}>
         <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#fff', marginTop: 15 }}>Panel de Control</Text>
         <Text style={{ color: '#c5cae9' }}>Centro de Operaciones</Text>
+
+        {/* Botón de cerrar sesión */}
+        <TouchableOpacity
+          style={{
+            position: 'absolute',
+            top: 25,
+            right: 20,
+            flexDirection: 'row',
+            alignItems: 'center'
+          }}
+          onPress={handleLogout}
+        >
+          <Ionicons name="log-out-outline" size={22} color="#fff" />
+        </TouchableOpacity>
       </View>
 
       <View style={{ flexDirection: 'row', justifyContent: 'space-evenly', marginTop: 15, borderBottomWidth: 1, borderColor: '#eee' }}>

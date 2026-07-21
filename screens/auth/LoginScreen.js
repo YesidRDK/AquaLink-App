@@ -236,9 +236,11 @@ export default function LoginScreen({ navigation, route }) {
                       <Text style={styles.label}>Ubicación exacta en mapa</Text>
                     </View>
 
+                    {/* ✅ CORRECCIÓN: Se agregó 'origen: Login' para que MapPicker sepa a dónde regresar */}
                     <TouchableOpacity
                       style={[styles.btnMapaRegistro, coordsResidencia && { borderColor: '#34C759', flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }]}
                       onPress={() => navigation.navigate('MapPicker', {
+                        origen: 'Login',
                         datosTemporales: { username, email, password, cedula, residencia, role }
                       })}
                     >

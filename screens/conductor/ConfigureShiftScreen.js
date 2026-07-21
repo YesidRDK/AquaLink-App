@@ -3,6 +3,7 @@
 // Permite al conductor seleccionar el camión con
 // el que trabajará y establecer el horario de
 // disponibilidad antes de iniciar la jornada.
+// Además guarda el camión activo en Firestore.
 // ================================================
 
 import React, { useState } from 'react';
@@ -12,6 +13,8 @@ import {
 } from 'react-native';
 import { styles } from '../../styles';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { auth, db } from '../../firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 
 export default function ConfigureShiftScreen({ navigation }) {
   // ==============================================
@@ -22,18 +25,34 @@ export default function ConfigureShiftScreen({ navigation }) {
 
   // Lista de camiones registrados por el conductor
   const misCamiones = [
-    { id: '1', placa: 'A12B34C', capacidad: '10.000 Lts' },
-    { id: '2', placa: 'X98Y76Z', capacidad: '5.000 Lts' },
+    { id: '1', placa: 'A12B34C', capacidad: '10000' },
+    { id: '2', placa: 'X98Y76Z', capacidad: '5000' },
   ];
 
   const [camionSeleccionado, setCamionSeleccionado] = useState(misCamiones[0].id);
 
   // ==============================================
   // Iniciar jornada con la configuración elegida
+  // y guardar el camión activo en Firestore
   // ==============================================
-  const handleIniciar = () => {
+  const handleIniciar = async () => {
     const camion = misCamiones.find(c => c.id === camionSeleccionado);
-    alert(`¡Jornada Iniciada! 🚀\nOperando camión ${camion.placa} (${camion.capacidad})\nHorario: ${horaInicio} - ${horaFin}`);
+    try {
+      const user = auth.currentUser;
+      if (user) {
+        // Guardar el camión activo en el documento del conductor
+        await updateDoc(doc(db, 'users', user.uid), {
+          camionActivo: {
+            placa: camion.placa,
+            capacidad: camion.capacidad,
+            id: camion.id
+          }
+        });
+      }
+    } catch (error) {
+      console.log('Error guardando camión activo:', error);
+    }
+    alert(`¡Jornada Iniciada! 🚀\nOperando camión ${camion.placa} (${camion.capacidad} Lts)\nHorario: ${horaInicio} - ${horaFin}`);
     navigation.navigate('Conductor', { isOnline: true });
   };
 
@@ -84,7 +103,7 @@ export default function ConfigureShiftScreen({ navigation }) {
               camionSeleccionado === item.id && styles.optionTextActive,
               { fontWeight: 'bold' }
             ]}>
-              {item.capacidad}
+              {item.capacidad} Lts
             </Text>
           </TouchableOpacity>
         ))}

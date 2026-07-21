@@ -7,6 +7,7 @@
 // - Modo pantalla completa para seguimiento de ruta.
 // - Si el pago es en efectivo, finaliza el pedido
 //   automáticamente sin esperar comprobante.
+// - Muestra capacidad del camión activo en estado.
 // ================================================
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -23,24 +24,28 @@ export default function ConductorScreen({ navigation, route }) {
   // ==============================================
   // ESTADOS PRINCIPALES
   // ==============================================
-  const [location, setLocation] = useState(null);         // Coordenadas GPS actuales
-  const [isOnline, setIsOnline] = useState(false);        // Estado de la jornada
-  const [isFullScreen, setIsFullScreen] = useState(false); // Modo mapa expandido
+  const [location, setLocation] = useState(null);
+  const [isOnline, setIsOnline] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const [pedidosActivos, setPedidosActivos] = useState(0);
   const [litrosDisponibles, setLitrosDisponibles] = useState(0);
+  const [camionInfo, setCamionInfo] = useState(null); // Datos del camión activo
   const [mostrarNotificacion, setMostrarNotificacion] = useState(false);
-  const [destinoRuta, setDestinoRuta] = useState(null);   // Coordenadas del destino activo
+  const [destinoRuta, setDestinoRuta] = useState(null);
   const [pedidoActivoId, setPedidoActivoId] = useState(null);
-  const [pedidoPendiente, setPedidoPendiente] = useState(null); // Nuevo pedido entrante
+  const [pedidoPendiente, setPedidoPendiente] = useState(null);
 
-  const pedidosIgnorados = useRef([]);        // IDs de pedidos ya rechazados
-  const activeOrderIdRef = useRef(null);      // Referencia actualizada del pedido activo
+  const pedidosIgnorados = useRef([]);
+  const activeOrderIdRef = useRef(null);
 
   // ==============================================
   // EFECTO: Procesar parámetros de navegación
   // ==============================================
   useEffect(() => {
-    if (route.params?.isOnline) setIsOnline(true);
+    if (route.params?.isOnline) {
+      setIsOnline(true);
+      actualizarEstadoFirestore(true);
+    }
     if (route.params?.nuevoPedidoAceptado) {
       setPedidosActivos(prev => prev + 1);
       setMostrarNotificacion(false);
@@ -59,19 +64,41 @@ export default function ConductorScreen({ navigation, route }) {
     }
   }, [route.params]);
 
+  // ==============================================
+  // Función auxiliar para guardar estado en Firestore
+  // ==============================================
+  const actualizarEstadoFirestore = async (enJornada) => {
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
+      await updateDoc(doc(db, 'users', user.uid), {
+        estado: enJornada ? 'activo' : 'inactivo',
+        isOnline: enJornada
+      });
+    } catch (error) {
+      console.log('Error al actualizar estado:', error);
+    }
+  };
+
   // Mantener sincronizada la referencia del pedido activo
   useEffect(() => {
     activeOrderIdRef.current = pedidoActivoId;
   }, [pedidoActivoId]);
 
   // ==============================================
-  // EFECTO: Escuchar litros disponibles del conductor
+  // EFECTO: Escuchar litros disponibles y camión activo del conductor
   // ==============================================
   useEffect(() => {
     const user = auth.currentUser;
     if (!user) return;
     const unsubscribe = onSnapshot(doc(db, 'users', user.uid), (docSnap) => {
-      if (docSnap.exists()) setLitrosDisponibles(docSnap.data().litrosActuales || 0);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setLitrosDisponibles(data.litrosActuales || 0);
+        if (data.camionActivo) {
+          setCamionInfo(data.camionActivo);
+        }
+      }
     });
     return () => unsubscribe();
   }, []);
@@ -132,13 +159,14 @@ export default function ConductorScreen({ navigation, route }) {
   // FUNCIONES DE CONTROL
   // ==============================================
 
-  // Detener la jornada laboral
-  const handleStopShift = () => {
+  // Detener la jornada laboral (también actualiza Firestore)
+  const handleStopShift = async () => {
     setIsOnline(false);
     setMostrarNotificacion(false);
     setDestinoRuta(null);
     setPedidoActivoId(null);
     setIsFullScreen(false);
+    await actualizarEstadoFirestore(false);
     alert('Jornada detenida.');
   };
 
@@ -151,7 +179,6 @@ export default function ConductorScreen({ navigation, route }) {
       if (!pedidoSnap.exists()) return;
       const pedidoData = pedidoSnap.data();
 
-      // Si el pago es en efectivo, finalizar directamente
       if (pedidoData.metodoPago === 'Efectivo') {
         const user = auth.currentUser;
         const litrosEntregados = parseInt(pedidoData.litros || 0);
@@ -174,7 +201,6 @@ export default function ConductorScreen({ navigation, route }) {
         return;
       }
 
-      // Para otros métodos de pago, esperar comprobante
       await updateDoc(pedidoRef, {
         estado: 'esperando_pago',
         fechaLlegada: new Date().toISOString()
@@ -192,10 +218,12 @@ export default function ConductorScreen({ navigation, route }) {
   // ESTILOS DINÁMICOS SEGÚN ESTADO
   // ==============================================
   let statusColor = isOnline ? (litrosDisponibles <= 0 ? '#FF9800' : '#34C759') : '#d32f2f';
-  let statusText = isOnline ? `EN SERVICIO (${litrosDisponibles} Lts restantes)` : 'FUERA DE SERVICIO';
+  let statusText = isOnline
+    ? `EN SERVICIO (${litrosDisponibles} Lts restantes)`
+    : `FUERA DE SERVICIO – ${camionInfo?.placa || 'Sin camión'} (${camionInfo?.capacidad || '?'} Lts)`;
 
   // ==============================================
-  // INTERFAZ PRINCIPAL
+  // INTERFAZ PRINCIPAL (sin cambios)
   // ==============================================
   return (
     <SafeAreaView style={styles.container}>
@@ -208,7 +236,6 @@ export default function ConductorScreen({ navigation, route }) {
           </View>
         ) : (
           <View style={{ flex: 1 }}>
-            {/* Mapa Leaflet con ruta al destino */}
             <WebView
               originWhitelist={['*']}
               source={{ html: `
@@ -243,7 +270,6 @@ export default function ConductorScreen({ navigation, route }) {
               style={styles.map}
             />
 
-            {/* Botón flotante: alternar pantalla completa */}
             <TouchableOpacity
               style={{
                 position: 'absolute', top: 20, right: 20, backgroundColor: '#fff',
@@ -256,7 +282,6 @@ export default function ConductorScreen({ navigation, route }) {
               <Ionicons name={isFullScreen ? "contract" : "expand"} size={24} color="#1976D2" />
             </TouchableOpacity>
 
-            {/* Notificación de nuevo pedido entrante */}
             {mostrarNotificacion && (
               <TouchableOpacity
                 style={{
@@ -287,7 +312,6 @@ export default function ConductorScreen({ navigation, route }) {
               </TouchableOpacity>
             )}
 
-            {/* Botón para confirmar llegada al destino */}
             {destinoRuta && pedidoActivoId && !mostrarNotificacion && (
               <TouchableOpacity
                 style={{
@@ -314,7 +338,6 @@ export default function ConductorScreen({ navigation, route }) {
           <Text style={{ color: '#666', fontWeight: 'bold' }}>{statusText}</Text>
         </View>
 
-        {/* Alerta de tanque vacío */}
         {isOnline && litrosDisponibles <= 0 && (
           <View style={{
             backgroundColor: '#ffebee', padding: 10, borderRadius: 10, marginBottom: 15,
@@ -330,7 +353,6 @@ export default function ConductorScreen({ navigation, route }) {
           </View>
         )}
 
-        {/* Botones de acción */}
         <View style={{ flex: 1, justifyContent: 'center', paddingBottom: 10 }}>
           {!isOnline ? (
             <TouchableOpacity
